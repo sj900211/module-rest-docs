@@ -8,9 +8,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static java.util.Optional.ofNullable;
 import static javax.lang.model.element.ElementKind.CLASS;
+import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
+import static org.springframework.util.StringUtils.hasLength;
 
 import com.google.auto.service.AutoService;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +35,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.FileCopyUtils;
 import run.freshr.annotation.Docs;
 import run.freshr.annotation.DocsGroup;
+import run.freshr.annotation.DocsPopup;
 import run.freshr.model.DocsGroupModel;
 import run.freshr.model.DocsGroupModel.DocsGroupModelBuilder;
 import run.freshr.model.DocsModel;
@@ -115,44 +119,53 @@ public class RestDocsProcessor extends AbstractProcessor {
 
       /*
        * index 문서는 프로젝트에서 자유롭게 수정 가능하도록
-       * src/main/resources/asciidocs/index.adoc 파일을 읽어오도록 설정
+       * src/main/resources/asciidocs/default-bottom.adoc
+       * src/main/resources/asciidocs/default-top.adoc
+       * src/main/resources/asciidocs/index.adoc
+       * src/main/resources/asciidocs/popup-bottom.adoc
+       * src/main/resources/asciidocs/popup-top.adoc
+       * 파일을 읽어오도록 설정
        */
+      Path projectDocsPath = Path.of("src", "main", "resources", "asciidocs");
       Path customIndexPath = ROOT_PATH
-          .resolve(Path.of("src", "main", "resources", "asciidocs", "index.adoc"));
-      byte[] indexByte;
+          .resolve(projectDocsPath.resolve("index.adoc"));
+      Path customDefaultTopPath = ROOT_PATH
+          .resolve(projectDocsPath.resolve("default-top.adoc"));
+      Path customDefaultBottomPath = ROOT_PATH
+          .resolve(projectDocsPath.resolve("default-bottom.adoc"));
+      Path customPopupTopPath = ROOT_PATH
+          .resolve(projectDocsPath.resolve("popup-top.adoc"));
+      Path customPopupBottomPath = ROOT_PATH
+          .resolve(projectDocsPath.resolve("popup-bottom.adoc"));
+      // 프로젝트에 *.adoc 문서가 없다면 해당 모듈에 있는 *.adoc 으로 대체
+      byte[] indexByte = readDoc(customIndexPath,
+          "asciidocs/index.adoc");
+      byte[] defaultTopByte = readDoc(customDefaultTopPath,
+          "asciidocs/default-top.adoc");
+      byte[] defaultBottomByte = readDoc(customDefaultBottomPath,
+          "asciidocs/default-bottom.adoc");
+      byte[] popupTopByte = readDoc(customPopupTopPath,
+          "asciidocs/popup-top.adoc");
+      byte[] popupBottomByte = readDoc(customPopupBottomPath,
+          "asciidocs/popup-bottom.adoc");
 
-      // 프로젝트에 index.adoc 문서가 없다면 해당 모듈에 있는 빈 index.adoc 으로 대체
-      if (Files.exists(customIndexPath)) {
-        indexByte = Files.readAllBytes(customIndexPath);
-      } else {
-        ClassPathResource indexResource = new ClassPathResource("asciidocs/index.adoc",
-            this.getClass().getClassLoader());
-        InputStream indexStream = indexResource.getInputStream();
-        indexByte = FileCopyUtils.copyToByteArray(indexStream);
-      }
-
-      // 각 문서의 최상단에 들어갈 내용
-      ClassPathResource defaultTopResource = new ClassPathResource(
-          "asciidocs/default-top.adoc", this.getClass().getClassLoader());
-      // 각 문서의 최하단에 들어갈 내용
-      ClassPathResource defaultBottomResource = new ClassPathResource(
-          "asciidocs/default-bottom.adoc", this.getClass().getClassLoader());
-
-
-      InputStream defaultTopStream = defaultTopResource.getInputStream();
-      InputStream defaultBottomStream = defaultBottomResource.getInputStream();
-      byte[] defaultTopByte = FileCopyUtils.copyToByteArray(defaultTopStream);
-      byte[] defaultBottomByte = FileCopyUtils.copyToByteArray(defaultBottomStream);
       String indexContents = new String(indexByte, UTF_8);
       String defaultTopContents = new String(defaultTopByte, UTF_8);
       String defaultBottomContents = new String(defaultBottomByte, UTF_8);
+      String popupTopContents = new String(popupTopByte, UTF_8);
+      String popupBottomContents = new String(popupBottomByte, UTF_8);
       StringBuilder indexBuilder = new StringBuilder();
       StringBuilder defaultTopBuilder = new StringBuilder();
       StringBuilder defaultBottomBuilder = new StringBuilder();
+      StringBuilder popupTopBuilder = new StringBuilder();
+      StringBuilder popupBottomBuilder = new StringBuilder();
       defaultTopBuilder.append(defaultTopContents).append(lineSeparator());
       defaultBottomBuilder.append(defaultBottomContents);
+      popupTopBuilder.append(popupTopContents);
+      popupBottomBuilder.append(popupBottomContents);
 
       List<DocsGroupModel> docsGroupList = new ArrayList<>();
+      List<DocsPopup> popupList = new ArrayList<>();
 
       /*
        * DcosGroup 과 Docs Annotation 정보를
@@ -204,6 +217,12 @@ public class RestDocsProcessor extends AbstractProcessor {
               .build();
 
           docsList.add(docsModel);
+
+          DocsPopup[] popups = docs.popup();
+
+          if (!isNull(popups) && popups.length > 0) {
+            popupList.addAll(List.of(popups));
+          }
         }
 
         DocsGroupModel groupModel = groupBuilder.docsList(docsList).build();
@@ -331,11 +350,53 @@ public class RestDocsProcessor extends AbstractProcessor {
           Files.writeString(documentDocs, stringBuilder.toString());
         }
       }
+
+      // 팝업 파일 생성
+      for (DocsPopup popup : popupList) {
+        if (!hasLength(popup.name())) {
+          processingEnv.getMessager().printMessage(ERROR, "Not found popup name");
+          continue;
+        }
+
+        if (!hasLength(popup.include())) {
+          processingEnv.getMessager().printMessage(ERROR, "Not found popup include path");
+          continue;
+        }
+
+        Path documentPath = DOCS_PATH.resolve("popup-" + popup.name() + ".adoc");
+        StringBuilder stringBuilder = new StringBuilder();
+
+        stringBuilder.append(popupTopBuilder).append(popup.include()).append("[]")
+            .append(lineSeparator())
+            .append(popupBottomBuilder);
+
+        // 파일 생성
+        if (!Files.exists(documentPath)) {
+          Path documentDocs = Files.createFile(documentPath);
+
+          Files.writeString(documentDocs, stringBuilder.toString());
+        }
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
 
     return true;
+  }
+
+  private byte[] readDoc(Path path, String resource) throws IOException {
+    byte[] bytes;
+
+    if (Files.exists(path)) {
+      bytes = Files.readAllBytes(path);
+    } else {
+      ClassPathResource indexResource = new ClassPathResource(resource,
+          this.getClass().getClassLoader());
+      InputStream indexStream = indexResource.getInputStream();
+      bytes = FileCopyUtils.copyToByteArray(indexStream);
+    }
+
+    return bytes;
   }
 
 }

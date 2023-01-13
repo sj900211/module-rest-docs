@@ -67,4 +67,6 @@ public @interface Docs {
    */
   boolean existsResponseFields() default false;
 
+  DocsPopup[] popup() default {};
+
 }
