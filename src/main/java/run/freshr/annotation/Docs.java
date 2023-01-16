@@ -18,34 +18,44 @@ import java.lang.annotation.Target;
 public @interface Docs {
 
   /**
-   * Path Parameter 문서 정의 여부
+   * Path Parameters 문서 정의 여부
    *
    * @return the boolean
-   * @apiNote Path Parameter 문서 정의 여부
+   * @apiNote Path Parameters 문서 정의 여부
    * @author FreshR
    * @since 2023. 1. 12. 오후 3:14:18
    */
   boolean existsPathParameters() default false;
 
   /**
-   * Request Part 문서 정의 여부
+   * Request Parts 문서 정의 여부
    *
    * @return the boolean
-   * @apiNote Request Part 문서 정의 여부
+   * @apiNote Request Parts 문서 정의 여부
    * @author FreshR
    * @since 2023. 1. 12. 오후 3:14:18
    */
   boolean existsRequestParts() default false;
 
   /**
-   * Request Parameter 문서 정의 여부
+   * Query Parameters 문서 정의 여부
    *
    * @return the boolean
-   * @apiNote Request Parameter 문서 정의 여부
+   * @apiNote Query Parameters 문서 정의 여부
    * @author FreshR
    * @since 2023. 1. 12. 오후 3:14:18
    */
-  boolean existsRequestParameters() default false;
+  boolean existsQueryParameters() default false;
+
+  /**
+   * Form Parameters 문서 정의 여부
+   *
+   * @return the boolean
+   * @apiNote Form Parameters 문서 정의 여부
+   * @author FreshR
+   * @since 2023. 1. 12. 오후 3:14:18
+   */
+  boolean existsFormParameters() default false;
 
   /**
    * Request Fields 문서 정의 여부

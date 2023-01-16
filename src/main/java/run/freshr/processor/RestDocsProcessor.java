@@ -211,7 +211,8 @@ public class RestDocsProcessor extends AbstractProcessor {
               .description(description)
               .existsPathParameters(docs.existsPathParameters())
               .existsRequestParts(docs.existsRequestParts())
-              .existsRequestParameters(docs.existsRequestParameters())
+              .existsQueryParameters(docs.existsQueryParameters())
+              .existsFormParameters(docs.existsFormParameters())
               .existsRequestFields(docs.existsRequestFields())
               .existsResponseFields(docs.existsResponseFields())
               .build();
@@ -308,9 +309,15 @@ public class RestDocsProcessor extends AbstractProcessor {
                 .append(lineSeparator()).append(lineSeparator());
           }
 
-          if (docsModel.getExistsRequestParameters()) {
+          if (docsModel.getExistsQueryParameters()) {
             stringBuilder.append(include)
-                .append("request-parameters.adoc[]")
+                .append("query-parameters.adoc[]")
+                .append(lineSeparator()).append(lineSeparator());
+          }
+
+          if (docsModel.getExistsFormParameters()) {
+            stringBuilder.append(include)
+                .append("form-parameters.adoc[]")
                 .append(lineSeparator()).append(lineSeparator());
           }
 

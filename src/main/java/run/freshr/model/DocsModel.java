@@ -31,7 +31,8 @@ public class DocsModel {
   private String description;
   private Boolean existsPathParameters;
   private Boolean existsRequestParts;
-  private Boolean existsRequestParameters;
+  private Boolean existsQueryParameters;
+  private Boolean existsFormParameters;
   private Boolean existsRequestFields;
   private Boolean existsResponseFields;
 
