@@ -28,14 +28,4 @@ public @interface DocsGroup {
    */
   String name() default "";
 
-  /**
-   * 설명
-   *
-   * @return the string
-   * @apiNote 문서에 대한 설명
-   * @author FreshR
-   * @since 2023. 1. 12. 오후 3:16:08
-   */
-  String description() default "";
-
 }

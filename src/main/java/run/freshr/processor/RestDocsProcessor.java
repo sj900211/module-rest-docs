@@ -184,9 +184,11 @@ public class RestDocsProcessor extends AbstractProcessor {
 
         String className = UPPER_CAMEL.to(LOWER_HYPHEN, element.getSimpleName().toString());
         String filename = group.name();
+        DisplayName classDisplayName = element.getAnnotation(DisplayName.class);
+        String classDescription = !isNull(classDisplayName) ? classDisplayName.value() : filename;
         DocsGroupModelBuilder groupBuilder = DocsGroupModel.builder()
             .name(filename)
-            .description(ofNullable(group.description()).orElse(filename))
+            .description(classDescription)
             .path(className);
         List<DocsModel> docsList = new ArrayList<>();
         List<? extends Element> testList = element.getEnclosedElements()
